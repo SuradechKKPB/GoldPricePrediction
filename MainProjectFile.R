@@ -67,7 +67,7 @@ DataExplorer::create_report(df_fund_flow)
 #No EDA performed on this table
 
 #8th table Changes in Gold held by central banks
-df_gold_bank_change = read.csv("https://www.pontawee.com/wp-content/uploads/2021/02/changes_latest_as_at_february-2021_ifs.csv")
+df_gold_bank_change = read.xlsx(xlsxFile = "https://pennstateoffice365-my.sharepoint.com/:x:/g/personal/wcb8_psu_edu/EXKIuXjDBeBHtBp76wqkOacBUuvvFE8rLRzRviDMx_D5_A?e=M972QE", sheet = 1)
 view(dfSummary(df_gold_bank_change))  #library(summarytools)
 explore(df_gold_bank_change)  #library(explore)
 makeDataReport(df_gold_bank_change,                
