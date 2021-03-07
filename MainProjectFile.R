@@ -75,4 +75,68 @@ makeDataReport(df_gold_bank_change,
                replace = TRUE)  #library(dataMaid)
 DataExplorer::create_report(df_gold_bank_change)
 
+#Deliverable 4 Data Cleaning and plan for data transformation
 
+#Decide to drop the 1st table (buy records) and 2nd table (sell records) from PontaweeSales.xlsx file from the analysis as there are a lot of inconsistencies with the 3rd table (Summary buy and sell transactions) and, as confirmed with the owners, the only way to make a good data cleaning is by re-key from hard copies.
+
+#Take a look at Table 3 Summary buy and sell transactions
+library(skimr)
+library(openxlsx)
+library(dplyr)
+library(lubridate)
+library(data.table)
+library(tidyr)
+
+df_pontawee_summary_record = read.xlsx(xlsxFile = "https://www.pontawee.com/wp-content/uploads/2021/02/PontaweeSales.xlsx", sheet = 3)
+skim(df_pontawee_summary_record)
+glimpse(df_pontawee_summary_record) #We observed that there are no real date-time column.  Month column is read as character so it should be converted to factor.  Year and date columns are read as double so it should be converted to integer.  There are a lot of missing values in Reset_stock_date so "NA" or "No" values should be filled-in for the missing cells.
+
+df_pontawee_summary_record$new_date <- as.Date(format(dmy(paste(df_pontawee_summary_record$Date, df_pontawee_summary_record$Month, df_pontawee_summary_record$Year)), '%d/%m/%Y'), '%d/%m/%Y')
+
+df_pontawee_summary_record$Month <- as.factor(df_pontawee_summary_record$Month)
+df_pontawee_summary_record$Year <- as.integer(df_pontawee_summary_record$Year)
+df_pontawee_summary_record$Date <- as.integer(df_pontawee_summary_record$Date)
+df_pontawee_summary_record$Reset_Stock_date[is.na(df_pontawee_summary_record$Reset_Stock_date)] = "No"
+df_pontawee_summary_record$Reset_Stock_date <- as.factor(df_pontawee_summary_record$Reset_Stock_date)
+
+df_pontawee_summary_record$Sell_weight[is.na(df_pontawee_summary_record$Sell_weight)] = 0 #Replace missing values with 0
+df_pontawee_summary_record$Buy_weight[is.na(df_pontawee_summary_record$Buy_weight)] = 0 #Replace missing values with 0
+
+glimpse(df_pontawee_summary_record) #The columns are converted to correct data type now.
+View(df_pontawee_summary_record)  #Viewing of some records has shown that some rows of GoldBarSellPrice and GoldBarBuyPrice do not have any values. We can separate this into three cases:
+# 1. Have values on GoldBarSellPrice but have missing values on GoldBarBuy price or vice versa, the missing values can be calculated as per typical margin on buy and sell price is usually 100 baht
+# 2. No values on both cells.  We decide to replace them manually due to small number of missing cells.
+
+setDT(df_pontawee_summary_record) # <- convert to data.table
+# going column-by-column, count NA
+df_pontawee_summary_record[ , lapply(.SD, function(x) sum(is.na(x))), by = Year]
+skim(df_pontawee_summary_record)
+#Case 1: Missing value on GoldBarSellPrice but has value on GoldBarBuyPrice
+#View the records
+df_pontawee_summary_record[is.na(df_pontawee_summary_record$GoldBarSellPrice) & !is.na(df_pontawee_summary_record$GoldBarBuyPrice)]
+
+#Change the missing values by calculation
+df_pontawee_summary_record$GoldBarSellPrice[is.na(df_pontawee_summary_record$GoldBarSellPrice) & !is.na(df_pontawee_summary_record$GoldBarBuyPrice)] = df_pontawee_summary_record$GoldBarBuyPrice[is.na(df_pontawee_summary_record$GoldBarSellPrice) & !is.na(df_pontawee_summary_record$GoldBarBuyPrice)] + 100
+
+skim(df_pontawee_summary_record)
+
+#Case 2: Missing value on GoldBarBuyPrice but has value on GoldBarSellPrice
+#View the records
+df_pontawee_summary_record[!is.na(df_pontawee_summary_record$GoldBarSellPrice) & is.na(df_pontawee_summary_record$GoldBarBuyPrice)]
+
+#Change the missing values by calculation
+df_pontawee_summary_record$GoldBarBuyPrice[!is.na(df_pontawee_summary_record$GoldBarSellPrice) & is.na(df_pontawee_summary_record$GoldBarBuyPrice)] = df_pontawee_summary_record$GoldBarSellPrice[!is.na(df_pontawee_summary_record$GoldBarSellPrice) & is.na(df_pontawee_summary_record$GoldBarBuyPrice)] - 100
+
+skim(df_pontawee_summary_record)
+
+#There are still 48 missing values
+df_pontawee_summary_record[is.na(df_pontawee_summary_record$GoldBarSellPrice) & is.na(df_pontawee_summary_record$GoldBarBuyPrice)]
+
+#As these missing values are not contributed to any business questions(it was missing because there is no buy or sell transaction on that day), we'll just impute from previous price here.
+df_pontawee_summary_record = df_pontawee_summary_record %>%
+  fill(GoldBarSellPrice) %>%
+  fill(GoldBarBuyPrice)
+
+skim(df_pontawee_summary_record)
+
+#We now have a cleaned data frame for Table 3.
