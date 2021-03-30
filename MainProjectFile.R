@@ -295,3 +295,25 @@ prophet_plot_components(m, forecast)
 Metrics::rmse(df_train$GoldBarSellPrice, prophet_clean_data_forecast$yhat[1:639])
 Metrics::rmse(df_test$GoldBarSellPrice, prophet_clean_data_forecast$yhat[640:754])
 
+
+#gold demand time series plotting
+data2 <- read.csv("https://www.pontawee.com/wp-content/uploads/2021/02/GoldDemand.csv")
+summary(data2)
+Gold.Demand.Tonnes <- ts(data2$Demand, start=c(2010, 3), end = c(2020, 3), freq=4)
+plot(Gold.Demand.Tonnes)
+abline(reg=lm(Gold.Demand.Tonnes~time(Gold.Demand.Tonnes)))
+plot(aggregate(Gold.Demand.Tonnes,FUN=mean))
+boxplot(Gold.Demand.Tonnes~cycle(Gold.Demand.Tonnes))
+library(tseries)
+adf.test(diff(log(Gold.Demand.Tonnes)), alternative="stationary", k=0)
+par(mfrow=c(2,2))
+plot(diff(log(Gold.Demand.Tonnes)))
+par(mfrow=c(4,4))
+acf(diff(log(Gold.Demand.Tonnes)))
+pacf(diff(log(Gold.Demand.Tonnes)))
+(fit <- arima(log(Gold.Demand.Tonnes), c(0, 1, 0),seasonal = list(order = c(0, 1, 0), period = 4)))
+pred <- predict(fit, n.ahead = 20*4)
+pred
+par(mfrow=c(2,2))
+ts.plot(Gold.Demand.Tonnes,2.718^pred$pred, log = "y", lty = c(1,3))
+
